@@ -1,0 +1,560 @@
+---
+title: "Text Analysis - Sound Harmony"
+author: "Leona Hoxha"
+format: html
+html:
+code-fold: true
+embed-resources: true
+---
+
+# Project Introduction
+
+## Abstract 
+*How difficult and tiring has it been the last time you wanted to invest in a good pair of headphones?*
+Headphones have become an essential part of our daily lives, whether we're listening to music, watching videos, or making calls, and choosing the perfect headphones can feel tricky with so many options available.
+
+In this project, I analyzed how people rated eleven specific headphones through reviews and comments on Reddit platform. Moreover, since many headphone brand websites lack reviewer sections, Reddit offers a platform for users to share genuine experiences and opinions. Given that, I want to see if the reviews/comments from Reddit align with the article rating for those specific headphones. Additionally, I want to see which rating from these two has a stronger link with the technical specifications of the headphones, and which rating is more reliable for the potential customers.
+
+As for the sentiment analysis, I will be analyzing three different models, and look deeply into which model is performing best for this project’s topic. I will also do LDA modelling to check which topics are mosly discussed when it comes to the headphones I chose.
+Overall, this project shows the importance of balancing technical specifications with user experiences when choosing headphones. By adding real user feedback, individuals can make better informed decisions for their needs.
+
+## Introduction
+In today's world, we see new headphones hitting the market all the time. With so many brands and features to choose from, it's not easy to find the headphones that are just right. Some people might just look at the price and hope for the best, but a higher price doesn't always mean better sound or quality.
+
+On the other hand, some people turn to online articles to find the trendiest headphones. While these articles can be helpful, they might not always reflect what actual users think or feel about those headphones.
+
+That's why I've decided to take a closer look at reviews and comments from Reddit for eleven different headphones. Alongside this, I'll also be analyzing articles from various online sources to see how they rate these headphones. 
+
+
+# DATA
+
+For this project, I will use 2 different data sets. The first one is the data set which consists of 11 headphones found from different websites/articles and the second data set has the reddit reviews of each headphone. Some headphones have more reviews such as around 500 reviews, whereas some have around 90 reviews, where I still hope to achieve a good sentiment analysis for those products by doing weighted formula on the results.
+
+## Headphone_ArticleList Data set
+
+From the articles I have been able to gather technical data for eleven headphones, where eight are ranked as "good" according to the articles and three of them are ranked as "not good" headphones. The reason why I got “good” and “bad” headphones, is because I wanted to have a more balanced dataset which consisted of different rated headphones, brands, types, connectivity and so on. Furthermore, six of them are from articles published in 2024, four of them are from 2023 and one of the headphones in the list is from the article published in 2022. I was only able to gather the data manually since the websites of the headphone brands don’t allow to scrape the data.
+
+Description of the variables in this data set:
+
+| Field                        | Description                                                                                           |
+|------------------------------|-------------------------------------------------------------------------------------------------------|
+| Headphone Name               | The specific name of the headphone model.                                                              |
+| Brand                        | The brand name of the headphone.                                                        |
+| Article/Website              | The name of the article or website that published the headphone.                       |
+| Year                         | The publication year of the article source.                                              |
+| Type                         | The headphone design type: over-ear, in-ear, or on-ear.                                                 |
+| Connectivity                 | The connectivity options of the headphone: wireless or hybrid (both wired and wireless).                |
+| Battery Life (hours)         | The duration the headphone battery can last on a single charge, measured in hours.                      |
+| Battery Capacity with Case (mAh) | The battery capacity of the headphone and its charging case, measured in milliampere-hours (mAh).       |
+| Active Noise Cancellation   | Indicates if the headphone features active noise cancellation technology.                                |
+| Bluetooth Version            | The version of Bluetooth technology supported by the headphone.                                          |
+| Driver Sensitivity (dB)      | The sensitivity of the headphone's driver, measured in decibels (dB).                                   |
+| Driver Size (mm)             | The diameter size of the headphone driver, measured in millimeters (mm).                                |
+| Tag/Comment                  | Additional labels or comments provided by the article or publication about the headphone.                |
+| Article Rate               | The rating or evaluation given to the headphone by the article or publication (good or not good).   |
+
+Initially, I got the Price of each headphone as well, but since the prices vary between different websites and geographical locations, I removed it. I also removed the Frequency Response since almost all of the headphones were in the range of 20Hz~40KHz (wouldn’t be a helpful variable).
+
+## RedditComments Data Set
+
+For this data set I have been able to gather in total 6100 reviews/comments for the 11 headphones, by using the help of Reddit Api. Initially, I had more reviews/comments, but some posts were not related to the headphones, due to the fact that reddit also shows posts that have a similar word in the search query, therefore I removed those posts manually, and it resulted in removing around 500 hundred reviews/comments. I have gathered some reviews in the r/headphones community(subreddit), since it has 1.1 Milion members and that seems like the right place to find some decent discussions around the headphones. However, for some of the headphones in my data set, there wasn't much discussions in r/headphones community, therefore I tried to gather some comments/reviews using the "all of Reddit" (different subreddit - not a specific one) in the search bar.
+
+Description of the variables in this data set:
+
+| Field            | Description                                                                                   |
+|------------------|-----------------------------------------------------------------------------------------------|
+| Headphone Name               | The specific name of the headphone model.                                                              |
+| Subreddit        | The name of the subreddit where the post was published.                                        |
+| Post_Title       | The title of the post.                                                                         |
+| Post_ID          | The unique identifier for the post.                                                             |
+| Post_Author      | The username of the author who created the post.                                                |
+| Post_URL         | The URL link to the post.                                                                       |
+| Post_Score       | The net upvotes received by the post, indicating its popularity among users.                    |
+| Num_Comments     | The total number of comments on the post.                                                       |
+| Created          | The Coordinated Universal Time (UTC) timestamp when the post was created on Reddit.                          |
+| Comment          | The comment or review related to the headphone in the specific post.                             |
+| Comment_Author   | The username of the author who posted the comment.                                              |
+| Comment_Score    | The net upvotes received by the comment, indicating its popularity among users.                  |
+
+## Importing Libraries
+In this section, I'm importing the necessary libraries for the entire project, organizing them based on their respective applications. The libraries have been categorized and ordered according to their specific utility in the project.
+
+```{python}
+import pandas as pd                   # For data manipulation and analysis
+import re                             # For regular expressions
+import os                             # For interacting with the operating system
+import numpy as np                    # For numerical computing
+import matplotlib.pyplot as plt       # For data visualization
+import seaborn as sns                 # For enhanced data visualization
+from wordcloud import WordCloud       # For generating word clouds
+from sklearn.feature_extraction.text import CountVectorizer  # For text preprocessing
+from sklearn.decomposition import LatentDirichletAllocation  # For topic modeling
+from scipy.special import softmax     # For softmax function
+from transformers import AutoTokenizer, AutoModelForSequenceClassification  # For sentiment analysis using ROBERTA model
+import warnings                       # For ignoring warnings
+from tqdm import tqdm                 # For displaying progress bars
+```
+
+## Importing the Data
+```{python}
+#| label: loading the CSV files
+headphones = pd.read_csv('Headphones_ArticleList.csv', sep=",", header=0, index_col=False)
+
+reddit = pd.read_csv('RedditComments.csv', sep=",", header=0, index_col=False)
+```
+
+```{python}
+#| label: displaying information about the datasets
+print("Information about the Headphone_ArticleList Data set:")
+print(headphones.info())
+
+print("Information about the RedditComments Data Set:")
+print(reddit.info())
+```
+
+
+# PREPROCESSING STEPS
+## Data Transformation
+
+```{python}
+#| label: preprocessing steps
+# converting 'Article Rate' to binary column
+headphones['Article Rate'] = headphones['Article Rate'].map({'good': 1, 'not good': 0})
+
+# converting 'Active Noise Cancellation' to binary column
+headphones['Active Noise Cancellation'] = headphones['Active Noise Cancellation'].map({'yes': 1, 'no': 0})
+
+# converting 'Connectivity' to binary column
+headphones['Connectivity'] = headphones['Connectivity'].map({'both': 1, 'wireless': 0})
+```
+
+## Data Cleaning
+```{python}
+#| label: data cleaning
+def clean_text(text):
+    # Remove URLs
+    text = re.sub(r'http\S+|www\S+|https\S+', '', text, flags=re.MULTILINE)
+    
+    # Remove special characters and numbers
+    text = re.sub(r'[^a-zA-Z\s]', '', text)
+    
+    # Remove extra spaces
+    text = re.sub(r'\s+', ' ', text).strip()
+    
+    return text
+
+reddit['Comment'] = reddit['Comment'].apply(clean_text)
+```
+
+
+# DATA VISUALIZATION
+## Visualization of Headphone Data Set
+I defined a custom function, plot_count_distribution_with_annotations, to plot the count distribution of categorical variables. I apply this function to visualize the distribution of 'Article Rate', 'Brand', 'Type', and 'Connectivity' within the dataset, providing insights into the frequency of each category. Additionally, I defined another function, plot_correlation_matrix, to visualize the correlation matrix of numerical features in the dataset, which shows the relationships between them. 
+```{python}
+#| label: barplots and correlation matrics
+# setting the aesthetic style of the plots
+sns.set(style="whitegrid")
+
+# defining a function to plot count distribution with annotations
+def plot_count_distribution_with_annotations(data, x, title, figsize=(10, 6)):
+    plt.figure(figsize=figsize)
+    ax = sns.countplot(data=data, x=x, palette="Set2", order=data[x].value_counts().index)
+    plt.title(title, fontsize=16, weight='bold')
+    plt.xlabel('')
+    plt.ylabel('Count', fontsize=14)
+    
+    # Annotate each bar with the count value
+    for p in ax.patches:
+        ax.annotate(f'{p.get_height()}', (p.get_x() + p.get_width() / 2., p.get_height()), 
+                    ha='center', va='baseline', fontsize=12, color='black')
+    
+    plt.xticks(rotation=45)
+    plt.show()
+
+# defining a function to plot correlation matrix
+def plot_correlation_matrix(data, title, figsize=(12, 8)):
+    plt.figure(figsize=figsize)
+    sns.heatmap(data.corr(), annot=True, cmap='viridis', fmt='.2f', linewidths=1, linecolor='black')
+    plt.title(title, fontsize=16, weight='bold')
+    plt.show()
+
+# visualizing the distribution of 'Article Rate' with annotations
+plot_count_distribution_with_annotations(headphones, 'Article Rate', 'Distribution of Article Rate')
+
+# visualizing 'Brand' distribution with annotations
+plot_count_distribution_with_annotations(headphones, 'Brand', 'Distribution of Headphone Brands', figsize=(14, 8))
+
+# visualizing 'Type' distribution with annotations
+plot_count_distribution_with_annotations(headphones, 'Type', 'Distribution of Headphone Types')
+
+# visualizing 'Connectivity' distribution with annotations
+plot_count_distribution_with_annotations(headphones, 'Connectivity', 'Distribution of Headphone Connectivity')
+
+# plotting correlation matrix for numerical features
+plot_correlation_matrix(headphones, 'Correlation Matrix for Headphone Features')
+```
+
+The bar visualizations show the information about the headphones I have in the headphones data set, in terms of the how many headphones are rate as “good” or “not good”, the distribution of brands in the data set, how many of them are in-ear, over-ear and on-ear, and how many of them are wireless or have hybrid connectivity.  I wanted my data set to not be biased in terms of  only “good” headphones. That’s why I chose some of them that were rated as “bad” headphones in the articles. Initially, I had over 50 headphones in my data set, but it was very difficult to find all the necessary technical data on the internet for all of them (since every headphone brand puts the information differently on their official websites). Therefore, there were too many missing values to keep all of the headphones, that’s  why I chose to stick with all these 11 headphones, where eight of them are rated as “good” and three of them are rated as “not good”.
+As for connectivity, four of them are hybrid (meaning wireless and wired) and seven of them are wireless. 
+From the correlation matrix visualization, I can see that there’s some correlation between Article Rate and the other variables in the headphones data set.  For example, the variables Connectivity, Driver Sensitivity and Driver Size are moderately correlated with Article Rate, whereas the other variables are weakly correlated with it. I can also see that Driver Size is strongly correlated with Connectivity, Battery Life and Battery Capacity. 
+
+## Text Length Analysis
+Here, I create a new feature, Comment_Length, in the reddit data set to represent the length (the number of characters) of each comment across different headphones.
+
+Next, I define the function plot_text_length_histogram, to plot histograms for the comment length distribution. Each subplot represents a unique headphone, and its color is determined using the 'husl' color palette from Seaborn, ensuring distinct colors for each headphone.
+```{python}
+#| label: text length analysis
+reddit['Comment_Length'] = reddit['Comment'].apply(len)
+
+# defining a function to plot histograms for text length
+def plot_text_length_histogram(data, title, color, ax):
+    sns.histplot(data=data, x='Comment_Length', kde=True, ax=ax, color=color)
+    ax.set_title(title, fontsize=16)
+    ax.set_xlabel('Comment Length', fontsize=14)
+    ax.set_ylabel('Frequency', fontsize=14)
+
+# creating a 3x4 grid for subplots
+fig, axs = plt.subplots(4, 3, figsize=(20, 15))
+
+# flattening the axs array for easy iteration
+axs = axs.flatten()
+
+# getting unique headphone names
+headphones_names= reddit['Headphone Name'].unique()
+
+# looping through each headphone to plot its comment length distribution
+for i, headphone in enumerate(headphones_names):
+    subset = reddit[reddit['Headphone Name'] == headphone]
+    color = sns.color_palette("husl", len(headphones_names))[i]
+    title = f'Comment Length Distribution for {headphone}'
+    plot_text_length_histogram(subset, title, color, axs[i])
+
+# hiding unused subplots
+for j in range(len(headphones_names), 12):
+    axs[j].axis('off')
+
+plt.tight_layout()
+plt.show()
+```
+
+From this visualization, I can see that none of the headphones has the same comment length distribution as the others. Some of them have a lot more comments than others by just looking at the histogram bin widths and the frequency limits on the y-axis, for example, samsung galaxy buds 2 pro and sony wh-1000xm5 have a lot more comments than sony wh-ch520 and jbl endurance peak ii. Due to this fact, the further analysis with these headphones could be considered as “biased” if I don’t properly interpret the sentiments results by using the weighted formula to calculate the overall score.
+
+## Word Cloud
+For this part, I visualize the most frequent words present in the Reddit comments using a word cloud. A word cloud provides a visual representation of text data, where the size of each word indicates its frequency in the text (Wordcloud: What’s it all about?, 2023).
+
+First, I define the function generate_word_cloud, to generate a word cloud from the “Comments” variable. 
+The resulting word cloud is saved as 'word_cloud.png' then loaded and displayed as below:
+
+```{python}
+#| label: word cloud
+def generate_word_cloud(data, save_path=None):
+    """
+    Generating a word cloud from the provided text data.
+    
+    Parameters:
+    - data: String containing the text data to generate the word cloud from
+    - save_path: Optional path to save the word cloud image
+    
+    Returns:
+    None
+    """
+    wordcloud = WordCloud(width=800, height=400, background_color='white').generate(data)
+
+    # displaying the word cloud
+    plt.figure(figsize=(10, 5))
+    plt.imshow(wordcloud, interpolation='bilinear')
+    plt.axis('off')
+    plt.title('Word Cloud for Reddit Comments')
+    
+    # saving the word cloud to an image file if save_path is provided
+    if save_path:
+        plt.savefig(save_path, bbox_inches='tight')
+        print(f"Word cloud saved to {save_path}")
+    else:
+        plt.show()
+
+text = ' '.join(reddit['Comment'])
+save_path = 'word_cloud.png'
+
+# checking if the word cloud image already exists
+if os.path.exists(save_path):
+    img = plt.imread(save_path)
+    plt.figure(figsize=(10, 5))
+    plt.imshow(img)
+    plt.axis('off')
+    plt.title('Word Cloud for Reddit Comments (Saved)')
+    plt.show()
+else:
+    # generating and saving the word cloud
+    generate_word_cloud(text, save_path)
+```
+
+From this visualization, I can see that the most terms used in the comments are Sound Quality, Ear, Buds, ANC, Audio, Music, Bass, Battery, Mic and Bluetooth which all are related to this topic. Additionally, I can also see some of the headphone brands, which had the highest number of comments as I stated before, such as Samsung Galaxy Buds and Airpods.
+
+## Topic Modeling using Latent Dirichlet Allocation (LDA)
+Now, I perform topic modeling on the Reddit comments using Latent Dirichlet Allocation (LDA). Topic modeling is a technique used to discover topics present in a collection of documents/comments. LDA is a probabilistic model that assumes each document is a mixture of a small number of topics, and each word in the document is attributable to one of the document's topics (Kulshrestha, 2019).
+
+I set the maximum word frequency (max_df) to 0.95 (95%) and the minimum word frequency (min_df) to 2 to filter out words that are too frequent or too rare. Additionally, I remove English stop words to focus on meaningful words.
+I specify n_components=5 to indicate that I want to identify 5 topics in the dataset.  
+Then I define the function display_topics to display the top words associated with each topic. This function sorts the words in each topic by their contribution to the topic and displays the top no_top_words words for each topic.
+
+Lastly I group the comments by 'Headphone Name' and perform LDA topic modeling separately for each group. This allows me to identify and display the dominant topics specific to each headphone brand.
+```{python}
+#| label: performing lda
+warnings.filterwarnings('ignore')
+
+# vectorizing the text data
+vectorizer = CountVectorizer(max_df=0.95, min_df=2, stop_words='english')
+data_vectorized = vectorizer.fit_transform(reddit['Comment'])
+
+# applying LDA
+lda_model = LatentDirichletAllocation(n_components=5, random_state=0)
+lda_model.fit(data_vectorized)
+
+# getting the dominant topic for each comment
+def get_dominant_topic(lda_model, data_vectorized):
+    dominant_topics = []
+    for i in range(data_vectorized.shape[0]):  # Use shape[0] to get the number of rows
+        topic_weights = lda_model.transform(data_vectorized[i])
+        dominant_topic = np.argmax(topic_weights)
+        dominant_topics.append(dominant_topic)
+    return dominant_topics
+
+reddit['Dominant_Topic'] = get_dominant_topic(lda_model, data_vectorized)
+
+# defining a function to display topics for each headphone
+def display_topics(model, feature_names, no_top_words):
+    topics = {}
+    for topic_idx, topic in enumerate(model.components_):
+        topics["Topic {}".format(topic_idx+1)] = [feature_names[i] for i in topic.argsort()[:-no_top_words - 1:-1]]
+    return topics
+
+no_top_words = 5
+feature_names = vectorizer.get_feature_names_out()
+
+# grouping by 'Headphone Name' and display topics
+for name, group in reddit.groupby('Headphone Name'):
+    print(f"Topics for {name}:")
+    data_vectorized_group = vectorizer.transform(group['Comment'])
+    lda_model_group = LatentDirichletAllocation(n_components=5, random_state=0)
+    lda_model_group.fit(data_vectorized_group)
+    topics = display_topics(lda_model_group, feature_names, no_top_words)
+    for topic, terms in topics.items():
+        print(f"{topic}: {' '.join(terms)}")
+    print("="*50)
+```
+
+From this visualization I can look into the most common discussions or interests across all the headphones. As for example for the sony wh-ch520, I can see the word “clear” therefore I might suppose that they have clear sounds, the word “replacement” together with “pads” can mean that the ear pads may need replacement after a while. For samsung galaxy buds 2 pro, “good sound bass” can mean that they have a good bass. For jbl endurance peak ii, I can see a lot of “thanks, worked” which can mean that a lot of the comments were about the issues customers were having and they were trying to get some help at reddit. For soundcore space q45, I can see a lot of “good battery” which can mean that the battery capacity/life is good from the experience of the commenters. Moreover, for the steelseries arctis nove pro, “gaming” can mean that these headphones are recommended for gaming enthusiasts.
+
+# SENTIMENT ANALYSIS 
+## ROBERTA MODEL
+### Initializing ROBERTA Model
+As a first step, I'm initializing a pre-trained sentiment analysis model called 'cardiffnlp/twitter-roberta-base-sentiment'. This is a Roberta-base model which is trained on ~58M tweets and finetuned for sentiment analysis with the TweetEval benchmark and is suitable for English (Francesco Barbieri, 2020). Then, I'm using the Hugging Face Transformers library to load both the tokenizer and the model for sequence classification from this pre-trained model.
+```{python}
+#| label: initializing roberta model
+MODEL = f"cardiffnlp/twitter-roberta-base-sentiment"
+tokenizer = AutoTokenizer.from_pretrained(MODEL)
+model = AutoModelForSequenceClassification.from_pretrained(MODEL)
+```
+
+### Sentiment Analysis using ROBERTA Model
+As a second step, I've defined a function named polarity_scores_roberta to perform sentiment analysis using the ROBERTA model. The function takes a comment as input, preprocesses it to fit the model's token limit, and then calculates sentiment scores for negative, neutral, and positive sentiments. These scores are returned as a dictionary. Consecuently, I'm calculating sentiment scores for each comment using this function.
+```{python}
+#| label: extracting the polarity score for each comment
+def polarity_scores_roberta(example, max_length=512):
+    example = example[:max_length-2]  # -2 to account for [CLS] and [SEP] tokens
+    
+    encoded_text = tokenizer(example, return_tensors='pt', truncation=True, max_length=max_length)
+    output = model(**encoded_text)
+    scores = output.logits[0].detach().numpy()
+    scores = softmax(scores)
+    scores_dict = {
+        'roberta_neg': scores[0],
+        'roberta_neu': scores[1],
+        'roberta_pos': scores[2]
+    }
+    return scores_dict
+
+# calculating sentiment scores for each comment using tqdm for loading visualization
+sentiment_scores = []
+
+# using tqdm to display a progress bar
+for comment in tqdm(reddit['Comment'], desc='Calculating sentiment scores'):
+    scores = polarity_scores_roberta(comment)
+    sentiment_scores.append(scores)
+
+```
+
+### Defining the Overall Rate
+As a third step, I've defined a function named calculate_overall_rate to determine the overall sentiment rate for each comment based on the sentiment scores obtained from the ROBERTA model. The function identifies the maximum sentiment score among negative, neutral, and positive sentiments and assigns an overall rate of 1 for positive sentiment, -1 for negative sentiment, and 0 for neutral sentiment. I then apply this function to the sentiment scores calculated earlier for each Reddit comment to create a new column named Overall_Rate in the reddit data set.
+```{python}
+#| label: defining overall rate for each comment
+def calculate_overall_rate(scores):
+    max_score = max(scores, key=scores.get)
+    
+    if max_score == 'roberta_pos':
+        return 1
+    elif max_score == 'roberta_neg':
+        return -1
+    else:
+        return 0
+
+reddit['Overall_Rate'] = [calculate_overall_rate(scores) for scores in sentiment_scores]
+
+```
+
+### Distribution of Overall_Rate
+Additionally, I want to show the distribution of the Overall_Rate it’s visualization across all the headphones. 
+```{python}
+#| label: distribution of overall rate for each headphone
+rate_distribution = reddit.groupby('Headphone Name')['Overall_Rate'].value_counts().unstack(fill_value=0)
+rate_distribution
+```
+
+```{python}
+#| label: distribution of overall rate for each headphone - visualization
+rate_distribution = reddit.groupby('Headphone Name')['Overall_Rate'].value_counts().unstack(fill_value=0)
+
+# plotting the grouped bar plot for the distribution of Overall_Rate for each headphone
+plt.figure(figsize=(20, 15))
+rate_distribution.plot(kind='bar', figsize=(15, 8), colormap='viridis', edgecolor='k', linewidth=1.5)
+plt.title('Distribution of Overall_Rate for Each Headphone', fontsize=20)
+plt.xlabel('')
+plt.ylabel('Count', fontsize=14)
+plt.xticks(rotation=60, fontsize=16)
+plt.legend(title='Overall_Rate', fontsize=20)
+plt.tight_layout()
+plt.show()
+```
+
+From this table, and it’s visualization, I can see how many positive, neutral, negative comments each of the headphones have. These don’t tell that much about which headphones were the best/worst rated since all of them had different numbers of comments, but I will look into that further below.
+
+### Defining the Weighted Rate
+As a forth step, I am firstly computing the mean of Overall_Rate for each headphone, named Mean_Rate. Then, I'm defining a Weighted_Rate variable, which is the mean Overall Rate multiplied with the number of positive/negative/neutral comments (depending whether the mean of Overall Rate for that specific headphone is positive/negative/neutral).
+```{python}
+#| label: defining the weighted rate
+# grouping by 'Headphone Name' to calculate the required metrics
+grouped_data = reddit.groupby('Headphone Name').agg(
+        Number_of_Negative_Ratings=('Overall_Rate', lambda x: (x == -1).sum()),
+        Number_of_Positive_Ratings=('Overall_Rate', lambda x: (x == 1).sum()),
+        Mean_Rate=('Overall_Rate', 'mean')
+    ).reset_index()
+
+# calculating the weighted mean based on the conditions
+grouped_data['Weighted_Rate'] = grouped_data.apply(lambda row: 
+                row['Mean_Rate'] * row['Number_of_Negative_Ratings'] 
+                if row['Mean_Rate'] < 0 
+                else (row['Mean_Rate'] * row['Number_of_Positive_Ratings'] 
+                if row['Mean_Rate'] > 0 
+                    else 0), axis=1)
+
+# sorting the DataFrame by 'Weighted_Rate' in descending order
+grouped_data = grouped_data.sort_values(by='Weighted_Rate', ascending=False).reset_index(drop=True)
+
+# displaying the new DataFrame
+grouped_data
+```
+
+The reason why I chose this formula is because of different distributions of comment number across the headphones I have in my data set. If one headphone has the Mean_Rate negative, I would want to multiply it by the number of negative commets it had, and the same goes for the positive scenario. In the last table, I also saw that one of the headphones(steelseries arctis nova pro) had the same number of positive and negative comments, therefore the Mean_Rate of that headphone is 0(neutral). 
+
+### Visualization of Weighted Rate
+Now, I want to visualize the Weighted_Rate by using bar plot, with the headphones sorted based on their weighted rates in descending order. 
+```{python}
+#| label: visualization of weighted rate for each headphone
+plt.figure(figsize=(12, 8))
+sns.barplot(x='Weighted_Rate', y='Headphone Name', data=grouped_data.sort_values(by='Weighted_Rate', ascending=False), palette='viridis')
+plt.title('Weighted Mean Rate by Headphone', fontsize=16)
+plt.xlabel('Weighted Mean Rate', fontsize=14)
+plt.ylabel('Headphone Name', fontsize=14)
+plt.show()
+```
+
+From this visualization, I can see that only the Samsung Galaxy Buds 2 Pro and SoundCore Space q45 were rated as “not good” headphones from the reddit users/commenters. On the other hand, Sony wh-1000xm5 and AirPods Pro 2nd generation were rated the best from all these eleven headphones.
+
+### Comparing Results with Article Rate
+As a last step, I want to see how well the weighted rate aligns with the article's ratings for each headphone. Additionally, I want to also look at the correlations between the Weighted_Rate and Article Rate with the technical data from the headphones dataset, which highlights potential alignment or discrepancies between the two rating systems.
+```{python}
+#| label: comparing results with article rate
+# merging the two DataFrames on 'Headphone Name'
+merged_data = pd.merge(headphones, grouped_data, on='Headphone Name', how='inner')
+
+# sorting the merged DataFrame based on 'Weighted_Rate' in descending order
+merged_data = merged_data[['Headphone Name', 'Article Rate', 'Weighted_Rate']].sort_values(by='Weighted_Rate', ascending=False)
+
+# reseting the index for better readability
+merged_data.reset_index(drop=True, inplace=True)
+
+# displaying the ranked comparison
+merged_data
+```
+
+
+### Correlation Map Comparison
+Comparing the link between Weighted Rate with technical data vs the link between Article Rate with techical data:
+```{python}
+#| label: correlation map comparison
+# merging the datasets on 'Headphone Name'
+merged_data_full = pd.merge(headphones, grouped_data, on='Headphone Name', how='inner')
+
+# calculating the correlation between 'Weighted_Rate' and each column in the headphones dataset
+corr_weighted = merged_data_full.drop(['Headphone Name', 'Mean_Rate'], axis=1).corr()['Weighted_Rate'].sort_values(ascending=False)
+
+# calculating the correlation between 'Article Rate' and each column in the headphones dataset
+corr_article = merged_data_full.drop(['Headphone Name', 'Mean_Rate'], axis=1).corr()['Article Rate'].sort_values(ascending=False)
+
+# combining the correlations into a single DataFrame for comparison
+corr_comparison = pd.DataFrame({
+    'Weighted_Rate': corr_weighted,
+    'Article Rate': corr_article
+}).reset_index()
+
+# melting the DataFrame to make it suitable for plotting
+corr_comparison_melted = pd.melt(corr_comparison, id_vars=['index'], var_name='Rate Type', value_name='Correlation')
+
+# Plotting the bar plot
+plt.figure(figsize=(14, 10))
+sns.barplot(x='index', y='Correlation', hue='Rate Type', data=corr_comparison_melted)
+plt.title('Correlation Comparison between Weighted Rate and Article Rate', fontsize=16)
+plt.xlabel('Feature', fontsize=14)
+plt.ylabel('Correlation Coefficient', fontsize=14)
+plt.xticks(rotation=45)
+plt.grid(True)
+plt.tight_layout()
+plt.show()
+```
+
+From this visualization, I can see that the Reddit comments/reviews don’t align with the website/articles ratings. A part of the reason is that articles may base their opinions on technical data, but the users on reddit share their experience with the products which in the end is more helpful to the ones who are looking to purchase those headphones. As for the correlation barplot visualization, I can see that there is a much weaker correlation between the technical data with Weighted Rate than with the Article Rate, which helps my reasoning that Article Rate may be based on technical data of the headphones.
+
+# Conclusion
+In conclusion, in this project I wanted to analyze and compare user reviews on Reddit platform and online articles' ratings for eleven specific headphones. The project constists of sentiment analysis using three models, topic modeling with LDA, and correlation analysis with technical specifications of the headphones.
+The Roberta model, which is trained on ~58M tweets,  outperformed TextBlob and Vader in accurately assessing sentiment from Reddit comments, therefore I used this model to continue my setiment analysis, with extracting the Overall Rate for each comment. On the other hand, the headphones I chose, had different number of comments (some of them being more discussed on Reddit), therefore in order to perform a non-biased sentiment analysis I chose to create the Weighted_Rate variable. This rate represents the mean of the Overall Rate for each headphone, multiplied by the number of comments (positive/negative/neutral) each headphone had.
+With the help of LDA topic modelling, by looking at the general topics that were discussed on Reddit I understood the user preferences and concerns around the headphones. 
+In the end, I observed that there was a weak correlation between Weighted_Rate from Reddit comments and technical specifications, indicating that user experiences may diverge from technical assessments. Moreover, there was a stronger correlation between Article Rate and technical data, suggesting that article ratings may be influenced by technical specifications.
+Overall, this project emphasizes the importance of considering both user experiences and technical specifications when evaluating headphones. While online articles may provide valuable technical insights, user reviews on platforms like Reddit offer authentic experiences that can guide potential customers in making informed decisions. On the other hand, accessing detailed technical information was quite challenging due to limited availability on brand websites therefore this project could be further enhanced if there was an easier access to technical data from official brand websites and by including a broader range of headphones for analysis. Such improvements would allow for a more detailed comparison between technical data and Reddit user comments.
+
+# References
+
+- AirPods Pro. (n.d.). Retrieved from [apple.com](https://www.apple.com/de/airpods-pro/)
+- Alice Richard, J. T. (2022, April 5). 4 earphones to avoid. Retrieved from [choice.com.au](https://www.choice.com.au/electronics-and-technology/home-entertainment/personal-listening/articles/the-5-worst-in-ear-headphones)
+- ARCTIS NOVA PRO WIRELESS FOR PC & PLAYSTATION. (n.d.). Retrieved from [steelseries.com](https://steelseries.com/gaming-headsets/arctis-nova-pro-wireless-pc-playstation)
+- Beri, A. (2020, May 27). SENTIMENTAL ANALYSIS USING VADER. Retrieved from [Towards Data Science](https://towardsdatascience.com/sentimental-analysis-using-vader-a3415fef7664)
+- Caddy, B. (2023, December 30). Headphone winners and losers of 2023. Retrieved from [techradar.com](https://www.techradar.com/audio/headphones/headphone-winners-and-losers-of-2023-from-sony-to-samsung-to-beats)
+- Editors, R. (2024, March 2). The Best Headphones for 2024. Retrieved from [rollingstone.com](https://www.rollingstone.com/product-recommendations/electronics/best-headphones-1234964365/)
+- Efimov, V. (2023, September 25). Large Language Models: RoBERTa — A Robustly Optimized BERT Approach. Retrieved from [Towards Data Science](https://towardsdatascience.com/roberta-1ef07226c8d8)
+- Francesco Barbieri, J. C.-C.-A. (2020). TWEETEVAL: Unified Benchmark and Comparative Evaluation for Tweet Classification. Santa Monica, CA 90405, USA: School of Computer Science and Informatics, Cardiff University, United Kingdom. Retrieved from [Hugging Face](https://huggingface.co/cardiffnlp/twitter-roberta-base-sentiment)
+- Galaxy Buds FE. (n.d.). Retrieved from [samsung.com](https://www.samsung.com/de/audio-sound/galaxy-buds/galaxy-buds-fe-graphite-sm-r400nzaadbt/)
+- Galaxy Buds2 Pro. (n.d.). Retrieved from [samsung.com](https://www.samsung.com/de/audio-sound/galaxy-buds/galaxy-buds2-pro-graphite-sm-r510nzaadbt/)
+- Gupta, S. S. (2023, May 4). Introduction to TextBlob in NLP. Retrieved from [Scaler](https://www.scaler.com/topics/nlp/nlp-textblob/)
+- JBL Endurance Peak II. (n.d.). Retrieved from [de.jbl.com](https://de.jbl.com/outlet/ENDURANCE+PEAK+II-.html)
+- JBL Endurance Peak II True Wireless In-Ear Sports Headphones. (n.d.). Retrieved from [amazon.de](https://www.amazon.de/JBL-Endurance-True-Wireless-Ear-Sportkopfh%C3%B6rer-Schwarz/dp/B08FB33K2R)
+- Kulshrestha, R. (2019, Jul 19). A Beginner’s Guide to Latent Dirichlet Allocation(LDA). Retrieved from [Towards Data Science](https://towardsdatascience.com/latent-dirichlet-allocation-lda-9d1cd064ffa2)
+- OnePlus Buds Pro 2. (n.d.). Retrieved from [oneplus.com](https://www.oneplus.com/global/oneplus-buds-pro-2)
+- S3 Wireless Over-Ear Headphones. (n.d.). Retrieved from [edifier.com](https://www.edifier.com/global/p/over-ear-on-ear-headphones/s3)
+- Space Q45 | Long-Lasting Noise Cancelling Headphones. (n.d.). Retrieved from [eu.soundcore.com](https://eu.soundcore.com/products/space-q45-a3040011)
+- Tim Gideon, B. M. (2024, March 23). The Best Headphones for 2024. Retrieved from [uk.pcmag](https://uk.pcmag.com/headphones/63/the-best-headphones)
+- WF-1000XM5. (n.d.). Retrieved from [sony.de](https://www.sony.de/headphones/products/wf-1000xm5)
+- WH-1000XM5 wireless noise canceling headphones. (n.d.). Retrieved from [sony.de](https://www.sony.de/store/product/wh1000xm5b.ce7/WH-1000XM5-kabellose-Kopfh%C3%B6rer-mit-Noise-Cancelling)
+- WH-CH520. (n.d.). Retrieved from [sony.de](https://www.sony.de/headphones/products/wh-ch520)
+- Wordcloud: What’s it all about? (2023, October 30). Retrieved from [DataScientest](https://datascientest.com/en/wordcloud-whats-it-all-about)
+
+
